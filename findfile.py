@@ -1,4 +1,5 @@
 from __future__ import print_function
+from subprocess import Popen, PIPE
 from string import printable
 import dpkt
 import sys
@@ -58,19 +59,27 @@ def arc7Z(b,n):
 
 
 if len(sys.argv)<2:
-        sys.exit("Usage: python findfile.py <path/to/file>")
-
-f = open(sys.argv[1])
+        sys.exit("Usage: python findfile.py <path/to/pcap_file>")
+try:
+    f = open(sys.argv[1])
+except IOError:
+    sys.exit("File not found!")
 
 c=0
-pcap = dpkt.pcap.Reader(f)
-
+try:
+    pcap = dpkt.pcap.Reader(f)
+except Exception:
+    exc = Popen(["file",sys.argv[1]], stdout=PIPE)
+    print ("Not a pcap file\nUsage: python findfile.py <path/to/pcap_file>")
+    sys.exit(exc.communicate()[0])
 for ts, buf in pcap:
     c+=1
     if "PNG" in buf:
         PNG(buf,c)
-    if "JFIF" in buf:
+    if "ffd8ff" in buf.encode('hex'):
         JPEG(buf,c)
+    if "IEND" in buf:
+        print ("PNG end in packet "+str(c))
     if ".txt" in buf:
         TXT(buf,c)
     if ("GIF" in buf):
